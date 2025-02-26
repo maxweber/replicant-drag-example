@@ -1,9 +1,9 @@
 {:deps {org.clojure/clojure        {:mvn/version "1.12.0"}
         org.clojure/clojurescript  {:mvn/version "1.11.132"}
         thheller/shadow-cljs       {:mvn/version "2.28.19"}
-        no.cjohansen/replicant     {:git/url "https://github.com/cjohansen/replicant"
-                                    ;; With this version the drag / :mousedown
-                                    ;; only works once per div:
-                                    :git/sha "156c3990f609e60c4ca87500002a247c1c7cf5f7"}
+        no.cjohansen/replicant     {:git/url "https://github.com/maxweber/replicant.git"
+                                    ;; Replicant version that fixes
+                                    ;; `update-event-listeners` issue.
+                                    :git/sha "94411d2020501e1a7ec8fbfc0a5da6aff953e7de"}
         datascript/datascript      {:mvn/version "1.7.4"}
         cjohansen/gadget-inspector {:mvn/version "0.2023.04.12"}}}
