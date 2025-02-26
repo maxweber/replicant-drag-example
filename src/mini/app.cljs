@@ -3,33 +3,39 @@
             [gadget.inspector :as inspector]
             [replicant.dom :as r]))
 
-(defonce ^:private !state (atom {:left 100}))
+(defonce ^:private !state
+  (atom {:clips [{:id 0
+                  :left 100}
+                 {:id 1
+                  :left 200}]}))
 
-(defn- display-view [state]
-  [:div
-   {:style {:position "relative"
-            :width "800px"
-            :height "204px"
-            :background-color "LightGray"}}
-   [:div
-    {:style {:position "absolute"
-             :left (str (:left state)
-                        "px")
-             :width "200px"
-             :height "200px"
-             :display "flex"
-             :align-items "center"
-             :justify-content "center"
-             :border "2px solid BlanchedAlmond"
-             :background-color "beige"
-             :user-select "none"}
-     :on {:mousedown [[:drag]]}}
-    "drag me"]])
+(defn clips [state]
+  (for [clip (:clips state)]
+    [:div
+     {:style {:position "relative"
+              :width "800px"
+              :height "204px"
+              :background-color "LightGray"
+              :margin-top "20px"}}
+     [:div
+      {:style {:position "absolute"
+               :left (str (:left clip)
+                          "px")
+               :width "200px"
+               :height "200px"
+               :display "flex"
+               :align-items "center"
+               :justify-content "center"
+               :border "2px solid BlanchedAlmond"
+               :background-color "beige"
+               :user-select "none"}
+       :on {:mousedown [[:drag (:id clip)]]}}
+      "drag me"]]))
 
 (defn- main-view [state]
   [:div {:style {:position "relative"}}
    [:h1 "A tiny drag example"]
-   (display-view state)
+   (clips state)
    (pr-str state)])
 
 (defn- enrich-action-from-event [{:replicant/keys [js-event node]} actions]
@@ -73,20 +79,24 @@
         :db/dissoc (apply swap! !state dissoc args)
         :dom/set-input-text (set! (.-value (first args)) (second args))
         :dom/focus-element (.focus (first args))
-        :drag (swap! !state assoc :drag {:start-offset (:left state)
+        :drag (swap! !state assoc :drag {:id (first args)
+                                         :start-offset (get-in state
+                                                               [:clips
+                                                                (first args)
+                                                                :left])
                                          :start-x (.-clientX js-event)})
         (prn "Unknown action" action)))))
 
 (defn on-mouse-move [evt]
   (prn "global: on-mouse-move")
   (when (:drag @!state)
-    (let [{:keys [start-x start-offset]} (:drag @!state)
+    (let [{:keys [id start-x start-offset]} (:drag @!state)
           current-x (.-clientX evt)
           delta-x   (- current-x start-x)
           new-left  (+ start-offset delta-x)]
       (swap! !state
-             assoc
-             :left
+             assoc-in
+             [:clips id :left]
              new-left))))
 
 (defn on-mouse-up
