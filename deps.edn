@@ -2,6 +2,8 @@
         org.clojure/clojurescript  {:mvn/version "1.11.132"}
         thheller/shadow-cljs       {:mvn/version "2.28.19"}
         no.cjohansen/replicant     {:git/url "https://github.com/cjohansen/replicant"
-                                    :git/sha "d56a5eaf6f2f8e154cd4008ce518aca93ac92e61"}
+                                    ;; With this version the drag / :mousedown
+                                    ;; only works once per div:
+                                    :git/sha "156c3990f609e60c4ca87500002a247c1c7cf5f7"}
         datascript/datascript      {:mvn/version "1.7.4"}
         cjohansen/gadget-inspector {:mvn/version "0.2023.04.12"}}}
