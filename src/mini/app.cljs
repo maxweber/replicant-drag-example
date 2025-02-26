@@ -1,49 +1,36 @@
 (ns mini.app
-  (:require [clojure.string :as string]
-            [clojure.walk :as walk]
+  (:require [clojure.walk :as walk]
             [gadget.inspector :as inspector]
             [replicant.dom :as r]))
 
-(defonce ^:private !state (atom {:ui/banner-text "An annoying banner"}))
+(defonce ^:private !state (atom {:left 100}))
 
-(defn banner-view [{:ui/keys [banner-text]}]
-  [:div#banner {:style {:top 0
-                        :transition "top 0.25s"}
-                :replicant/mounting {:style {:top "-100px"}}
-                :replicant/unmounting {:style {:top "-100px"}}}
-   [:p banner-text]
-   [:button {:on {:click [[:db/dissoc :ui/banner-text]]}} "Dismiss"]])
-
-(defn- edit-view [{:something/keys [draft]}]
+(defn- display-view [state]
   [:div
-   [:h2 "Edit"]
-   [:form {:on {:submit [[:dom/prevent-default]
-                         [:db/assoc :something/saved [:db/get :something/draft]]]}}
-    [:span.wrap-input
-     [:input#draft {:replicant/on-mount [[:db/assoc :something/draft-input-element :dom/node]]
-                    :on {:input [[:db/assoc :something/draft :event/target.value]]}}]
-     (when-not (string/blank? draft)
-       [:span.icon-right {:on {:click [[:db/assoc :something/draft ""]
-                                       [:dom/set-input-text [:db/get :something/draft-input-element] ""]
-                                       [:dom/focus-element [:db/get :something/draft-input-element]]]}
-                          :title "Clear draft"}
-        "⨉"])]
-    [:button {:type :submit} "Save draft"]]])
-
-(defn- display-view [{:something/keys [draft saved]}]
-  [:div
-   [:h2 "On display"]
-   [:ul
-    [:li {:replicant/key "draft"} "Draft: " draft]
-    [:li {:replicant/key "saved"} "Saved: " saved]]])
+   {:style {:position "relative"
+            :width "800px"
+            :height "204px"
+            :background-color "LightGray"}}
+   [:div
+    {:style {:position "absolute"
+             :left (str (:left state)
+                        "px")
+             :width "200px"
+             :height "200px"
+             :display "flex"
+             :align-items "center"
+             :justify-content "center"
+             :border "2px solid BlanchedAlmond"
+             :background-color "beige"
+             :user-select "none"}
+     :on {:mousedown [[:drag]]}}
+    "drag me"]])
 
 (defn- main-view [state]
   [:div {:style {:position "relative"}}
-   (when (:ui/banner-text state)
-     (banner-view state))
-   [:h1 "A tiny (and silly) Replicant example"]
-   (edit-view state)
-   (display-view state)])
+   [:h1 "A tiny drag example"]
+   (display-view state)
+   (pr-str state)])
 
 (defn- enrich-action-from-event [{:replicant/keys [js-event node]} actions]
   (walk/postwalk
@@ -77,7 +64,8 @@
     (let [enriched-action (->> action
                                (enrich-action-from-event replicant-data)
                                (enrich-action-from-state @!state))
-          [action-name & args] enriched-action]
+          [action-name & args] enriched-action
+          state @!state]
       (prn "Enriched action" enriched-action)
       (case action-name
         :dom/prevent-default (.preventDefault js-event)
@@ -85,13 +73,48 @@
         :db/dissoc (apply swap! !state dissoc args)
         :dom/set-input-text (set! (.-value (first args)) (second args))
         :dom/focus-element (.focus (first args))
-        (prn "Unknown action" action))))
-  (render! @!state))
+        :drag (swap! !state assoc :drag {:start-offset (:left state)
+                                         :start-x (.-clientX js-event)})
+        (prn "Unknown action" action)))))
+
+(defn on-mouse-move [evt]
+  (prn "global: on-mouse-move")
+  (when (:drag @!state)
+    (let [{:keys [start-x start-offset]} (:drag @!state)
+          current-x (.-clientX evt)
+          delta-x   (- current-x start-x)
+          new-left  (+ start-offset delta-x)]
+      (swap! !state
+             assoc
+             :left
+             new-left))))
+
+(defn on-mouse-up
+  [_event]
+  (prn "global: on-mouse-up")
+  (swap! !state
+         dissoc
+         :drag))
+
+(defn register!
+  []
+  (.addEventListener js/document
+                     "mousemove"
+                     on-mouse-move)
+  (.addEventListener js/document
+                     "mouseup"
+                     on-mouse-up))
 
 (defn ^{:dev/after-load true :export true} start! []
   (render! @!state))
 
 (defn ^:export init! []
   (inspector/inspect "App state" !state)
-  (r/set-dispatch! event-handler)
+  (r/set-dispatch! #'event-handler)
+  (register!)
+  (add-watch
+   !state
+   ::render
+   (fn [_ _ _ state]
+     (render! state)))
   (start!))
